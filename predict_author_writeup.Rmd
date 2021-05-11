@@ -49,7 +49,7 @@ We break our text down into tokens whereby each token represents a feature of ou
 
 To start out, we take a look at the tf-idfs within Plato's works, we see that the words that most uniquely identify Plato's works are the names of characters which makes sense as Plato mostly expressed his philosophy through stories. Several of his works such as Euthyphro, Parmenides, Crito and Critias etc. are even named after the main character. 
 
-Next, we repeat the above step but this time across all authors. We see xyz
+Next, we repeat the above step but this time across all authors. We see that Plato is mostly identified by names of characters as expected, Aristotle seems to be heavily identified by his use of greek letters, Kant looks to be identified by more broad philosophical ideas. It's difficult to say how exactly Hume is identified but the rest of the terms associated with these authors makes sense. 
 
 [^1]: https://www.gutenberg.org/
 
