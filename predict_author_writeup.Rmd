@@ -1,0 +1,452 @@
+---
+title: "Predicting Authors"
+author: "Olalekan Bello and Gaetano Dona-Jehan"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+header-includes: \usepackage{setspace}\doublespacing
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(cache = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+
+library(tidymodels)     # Modeling framework
+library(textrecipes)    # extension to preprocessing engine to handle text
+library(stringr)        # String modification
+library(gutenbergr)
+library(tokenizers)     # Tokenization engine
+library(furrr) 
+library(tidyverse)
+library(ggplot2)
+library(forcats)
+library(tidytext)
+library(themis)
+library(hardhat)
+library(rsample)
+library(doParallel)
+library(topicmodels)
+library(tm)
+library(ggraph)
+library(igraph)
+```
+
+
+## Overview
+
+Philosophy has an extensive history starting all the way from the era of the proto-philosophers such as Heraclitus and Thales to the early western philosophers like Plato and Aristotle to the later westerners such as Kant and Hume. Ideas are often transferred and refined from generation to generation and also within contemporaries. For this project, we aim to see if we could accurately distinguish ideas across a set of philosophers using both supervised and unsupervised machine learning tools. Our goal is to determine whether we can take a line from our set of authors and their works and accurately predict who wrote it. 
+
+We focus on four philosophers; Plato, Aristotle, Immanuel Kant and David Hume. We selected this group of philosophers for two reasons. One being that they are key figures in the history of philosophy. The second being that there exists relationships between the of authors that make the problem more interesting. Firstly, Plato and Aristotle are contemporaries as they both “published” works in the 4th century BC, whereas Kant and Hume published their essays in the 18th century. Given this, there might be a similarity that exists between authors in terms of writing styles and patterns that are common to their respective eras. There is also the issue of translations. Plato and Aristotle both originally wrote in Greek which has now been translated to English and Kant also originally wrote in German. Translations often contain the writing mannerisms of the translator, meaning that, although the original works are from two different authors, the translated works might share similar writing patterns due to being translated by the same translator.
+
+In terms of relationships, there also exists a mix of ideas between the authors. Plato is know as the father of western philosophy which all the authors belong to and was actually a direct teacher of Aristotle. Kant and Hume were also "competitors" in a sense in that they belonged to different schools of thought within Western philosophy. Kant even famously credited Hume for "awaking him from his slumber".
+
+
+## Data and Models
+
+Our primary data source is the gutenberg project [^1]. The gutenberg project is an online library of over 60,000 free e-books that span a long range of time and genres. We access this library using the "gutenbergr" package which allows us to directly download and process public domain works from the Gutenberg project collection as well as their metadata. The metadata that is given includes information about each work that we downloaded with their Gutenberg ID, title, information about the author, the language etc… We process this data using a number of text based packages in R. 
+We break our text down into tokens whereby each token represents a feature of our dataset. Instead of using raw counts as our variables of interest, we use the slightly more sophisticated term-frequency inverse document frequency (tf_idf) [^2]. Basically, the tf-idf is able to look within groups and identify the words that are most important to that particular group. This eliminates the need to manually remove stopwords such as "a, the, and, or" etc. because they would be weighted at 0 or very close to 0 because they are common across groups. 
+
+To start out, we take a look at the tf-idfs within Plato's works, we see that the words that most uniquely identify Plato's works are the names of characters which makes sense as Plato mostly expressed his philosophy through stories. Several of his works such as Euthyphro, Parmenides, Crito and Critias etc. are even named after the main character. 
+
+Next, we repeat the above step but this time across all authors. We see xyz
+
+[^1]: https://www.gutenberg.org/
+
+[^2]: More on tf-idf can be found here https://www.tidytextmining.com/tfidf.html
+
+```{r}
+philosophy<-gutenberg_works(author == "Plato"| author == "Aristotle" | author == "Kant, Immanuel" | author == "Hume, David") %>%
+  gutenberg_download(meta_fields = c("title", "author"))
+
+philosophy<- philosophy %>% mutate(author= ifelse(author== "Kant, Immanuel", "Kant", author))
+philosophy<- philosophy %>% mutate(author= ifelse(author== "Hume, David", "Hume", author))
+
+
+##removing collections and indexes. also remove history related works 
+philosophy<- filter(philosophy, title!= "Apology, Crito, and Phaedo of Socrates" & 
+                 title!= "The Project Gutenberg Works of Plato\r\nAn Index" & title !=  "The Works of Aristotle the Famous Philosopher\r\nContaining his Complete Masterpiece and Family Physician; his Experienced Midwife, his Book of Problems and his Remarks on Physiognomy")
+
+philosophy<-philosophy %>% filter(!str_detect(title, "The History of England"))
+
+philosphyunsupervised <- philosophy
+```
+
+
+```{r}
+philosophy_words<- philosophy %>%
+unnest_tokens(word, text) %>%
+mutate(word = str_remove_all(word, "_")) %>%
+count(title, word, author, sort = TRUE)
+
+##removing i.e and e.g
+mystopwords <- tibble(word = c("e.g", "_i.e", "i.e", "xiii", "book1", "chapter1", "chapter2",
+                               "book2", "chapter3"))
+
+philosophy_words <- anti_join(philosophy_words, mystopwords, 
+                             by = "word")
+
+##plato words
+plato_words<- philosophy_words %>% filter(author== "Plato")
+total_plato <- plato_words %>% 
+  group_by(title) %>% 
+  summarize(total = sum(n))
+
+plato_words <- left_join(plato_words, total_plato)
+
+
+##term frequency plato
+plato_tf_idf <- plato_words %>%
+  bind_tf_idf(word, title, n)
+
+a<-plato_tf_idf %>%
+  select(-total) %>%
+  arrange(desc(tf_idf))
+
+plato_plot<-plato_tf_idf %>%
+  group_by(title) %>%
+  slice_max(tf_idf, n = 15) %>%
+  ungroup() %>%
+  ggplot(aes(tf_idf, fct_reorder(word, tf_idf), fill = title)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~title, ncol = 4, scales = "free") +
+  labs(x = "tf-idf", y = NULL)
+
+ggsave("plato.png", width = 13, height= 15)
+```
+
+![](plato.png)
+
+
+```{r}
+
+philosophy_words_2 <- philosophy %>%
+  unnest_tokens(word, text) %>%
+  count(author, word, sort = TRUE)
+
+
+philosophy_words_2 <- anti_join(philosophy_words_2, mystopwords, 
+                                by = "word")
+
+plot_philosophy <- philosophy_words_2 %>%
+  bind_tf_idf(word, author, n) %>%
+  mutate(word = str_remove_all(word, "_")) %>%
+  mutate(author = factor(author, levels = c("Plato",
+                                            "Aristotle",
+                                            "Kant",
+                                            "Hume")))%>%
+filter(is.na(as.numeric(word)))
+
+
+author_plot<-plot_philosophy %>% 
+  group_by(author) %>% 
+  slice_max(tf_idf, n = 15) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, tf_idf)) %>%
+  ggplot(aes(tf_idf, word, fill = author)) +
+  geom_col(show.legend = FALSE) +
+  labs(x = "tf-idf", y = NULL) +
+  facet_wrap(~author, ncol = 2, scales = "free")
+
+ggsave("authors.png", width = 10, height= 10)
+
+```
+
+![](authors.png)
+
+### Supervised learning model
+
+For our supervised learning model, we employ the use of a multinomial regression model with lasso regularization using the glmnet package in r. The tokens and their tf-idfs represent the features of our data. This method is well suited for text prediction as given the very high dimensional space of our features, the lasso regularization allows for the penalization of features (down to zero at times) and so the final model will only include features (tokens) that the algorithm considers to be key to prediction ^[3]. 
+
+First, we split our data into a training and test set and examine the raw counts of lines by author. From the table below, we see that we do not have balance as Plato is overly represented in our training sample. To address this, authors with the majority of the lines are down-sampled after our text-preprocessing steps in order to achieve a balanced sample of authors to potentially improve our prediction. We also use a max of 1600 tokens ^[4] We explore different values for our penalty hyper-parameter and we use the one that returns the best results in terms of prediction accuracy as our final model. In dealing with the random variation in our train/test splits, we use k-fold cross validation with 10 folds.
+
+[^3]: More on lasso can be found here https://en.wikipedia.org/wiki/Lasso_(statistics)
+
+[^4]: This is the largest value that maximizes predictive power with a reasonable computing time.
+
+```{r}
+
+##splitting into training and test set stratified by author
+
+set.seed(1234)
+
+philosophy_split <- philosophy %>%
+initial_split(prop= 0.8, strata = "author")
+train_data <- training(philosophy_split)
+test_data <- testing(philosophy_split)
+
+```
+
+
+```{r}
+
+train_data %>%
+  count(author, sort = TRUE) %>%
+  select(n, author)
+
+##defining the model formula
+philosophy_rec <-
+    recipe(author ~ text, data = train_data)
+
+##text preprocessing and downsampling
+philosophy_rec <- philosophy_rec %>%
+    step_tokenize(text) %>%
+    step_tokenfilter(text, max_tokens = 1600) %>% 
+    step_tfidf(text) %>%
+    step_downsample(author)
+    
+```
+
+
+The table below reports the "best" model across a range of penalties. We see that our best model has an accuracy of about 67 percent. This is not "awesome" in terms of accuracy but is fairly reasonable. We are attempting to predict the author line by line within the same subject area of philosophy without any other predictors other than the text itself which is a fairly challenging task. There are also the aforementioned challenges of the connections that exist between the authors making the classification task even more difficult. 
+
+```{r}
+set.seed(1234)
+
+##k folds
+multiphilosophy_folds <- vfold_cv(train_data)
+
+multi_spec <- multinom_reg(penalty = tune(), mixture = 1) %>%
+    set_mode("classification") %>%
+    set_engine("glmnet")
+  
+  
+sparse_bp <- default_recipe_blueprint(composition = "dgCMatrix")
+  
+  multi_lasso_wf <- workflow() %>%
+    add_recipe(philosophy_rec, blueprint = sparse_bp) %>%
+    add_model(multi_spec)
+  
+##grid of penalties to check
+smaller_lambda <- grid_regular(penalty(range = c(-5, 0)), levels = 10)
+  
+
+all_cores <- parallel::detectCores(logical = FALSE)
+cl <- parallel::makePSOCKcluster(4L,setup_strategy = "sequential")
+registerDoParallel(cl)
+
+
+
+##model tuning
+multi_lasso_rs <- tune_grid(
+    multi_lasso_wf,
+    multiphilosophy_folds,
+    grid = smaller_lambda,
+    control = control_resamples(save_pred = TRUE)
+  )
+
+##best model
+best_acc <- multi_lasso_rs %>%
+    show_best("accuracy")
+
+best_acc
+```
+
+
+The confusion matrix below for the first fold shows exactly how the model classifies and mis-classifies. We see that the diagonal is well populated which is good. The model seems to do best at classifying Plato. This makes sense because as previously discussed, Plato uses the name of characters a lot in his works that would not be used by another author making it easier to identify that a line was written by him. With misclassification, we see that Plato is often mistaken for Aristotle which again makes is reasonable as Plato was Aristotle's teacher and so naturally there would be a transfer of ideas between their works. 
+
+```{r}
+## confusion matrix
+multi_lasso_rs %>%
+    collect_predictions() %>%
+    filter(penalty == best_acc$penalty) %>%
+    filter(id == "Fold01") %>%
+    conf_mat(author, .pred_class) %>%
+    autoplot(type = "heatmap")
+
+```
+
+Lastly,we evaluate our model on the test set. We have an accuracy of 66.7% which is very close to our in-sample accuracy. 
+
+```{r}
+choose_acc <- multi_lasso_rs %>%
+  select_by_pct_loss(metric = "accuracy", -penalty)
+
+final_wf <- finalize_workflow(multi_lasso_wf, choose_acc)
+final_fitted <- last_fit(final_wf, philosophy_split)
+
+collect_metrics(final_fitted)
+```
+
+Let's check and see which lines the model seems to do best at in the test set. 
+
+**Best predicted lines**
+
+```{r}
+collect_predictions(final_fitted) %>%
+  select(.pred_Kant, .pred_Plato, .pred_Hume, .pred_Aristotle) %>%
+  bind_cols(test_data) %>%
+  pivot_longer(starts_with(".pred_")) %>%
+  filter(gsub(".pred_", "", name) == author) %>%
+  group_by(author) %>%
+  arrange(desc(value)) %>%
+  slice(1:2)%>%
+  ungroup() %>%
+  select(author, text, title, value)
+
+```
+
+The lines are pretty short and most are even single words but the predictions make sense. As we see with Plato, lines with the character names are almost guaranteed to be written by him. Self-control is also a big theme within Aristotle work's as he was the one who heavily developed the idea of the golden-mean.
+
+
+### Unsupervised learning model
+
+In text mining, we often have collections of documents, such as blog posts or news articles, that we’d like to divide into natural groups so that we can understand them separately. Topic modeling is a method for unsupervised classification of such documents, similar to clustering on numeric data, which finds natural groups of items even when we’re not sure what we’re looking for.
+
+Latent Dirichlet allocation (LDA) is a particularly popular method for fitting a topic model. It treats each document as a mixture of topics, and each topic as a mixture of words. This allows documents to “overlap” each other in terms of content, rather than being separated into discrete groups, in a way that mirrors typical use of natural language. 
+
+Latent Dirichlet allocation is one of the most common algorithms for topic modeling. Without diving into the math behind the model, we can understand it as being guided by two principles: 
+
+Every document is a mixture of topics. We imagine that each document may contain words from several topics in particular proportions. For example, in a two-topic model we could say “Document 1 is 90% topic A and 10% topic B, while Document 2 is 30% topic A and 70% topic B.”
+Every topic is a mixture of words. For example, we could imagine a two-topic model of American news, with one topic for “politics” and one for “entertainment.” The most common words in the politics topic might be “President”, “Congress”, and “government”, while the entertainment topic may be made up of words such as “movies”, “television”, and “actor”. Importantly, words can be shared between topics; a word like “budget” might appear in both equally.
+
+LDA is a mathematical method for estimating both of these at the same time: finding the mixture of words that is associated with each topic, while also determining the mixture of topics that describes each document. There are a number of existing implementations of this algorithm, and we’ll explore one of them in depth.
+
+However, before we start we need to clean the data.  
+```{r}
+philosphyunsupervisedcopy <- philosphyunsupervised
+
+cleaned_philosphyunsupervised <- philosphyunsupervised %>%
+  group_by(author, gutenberg_id) %>%
+  filter(cumsum(text == "") > 0,
+         cumsum(str_detect(text, "^--")) == 0) %>%
+  ungroup()
+
+mystopwords <- tibble(word = c("e.g", "_i.e", "i.e", "xiii", "book1", "chapter1", "chapter2",
+                               "book2", "chapter3"))
+
+philosophy_words <- cleaned_philosphyunsupervised %>%
+  unnest_tokens(word, text) %>%
+  filter(str_detect(word, "[a-z']$"),
+         !word %in% stop_words$word)
+
+philosophy_words <- anti_join(philosophy_words, mystopwords, 
+                              by = "word")
+```
+
+However, we go a step further by keeping words that have been mentioned more than 50 times in all of the texts. We are doing this because there is the possbility that the words that are mentioned less than 50 times are unique to a particular author and/or series of books written by an author that might make it easier for our unsupervised model to cluster the texts.   
+
+```{r}
+#### Keeping words that appear more than 50 times
+philosophy_words_mentioned50 <- philosophy_words %>%
+  group_by(word) %>%
+  mutate(word_total = n()) %>%
+  ungroup() %>%
+  filter(word_total > 50)
+
+
+```
+
+Once the cleanup process is finished, transforming it into data matrix. 
+
+```{r}
+#### Transforming into data matrix
+
+philosophy_dtm <- philosophy_words_mentioned50 %>%
+  unite(title, author, gutenberg_id) %>%
+  count(title, word) %>%
+  cast_dtm(title, word, n)
+
+```
+
+
+As we have four authors, or "topics", we want to see what four topics that the model extract.
+```{r}
+#### Using Latent Dirichlet Allocation, setting it to four clusters as we have four authors 
+set.seed(1234)
+philosophy_lda <- LDA(philosophy_dtm, k = 4)
+philosophy_lda %>%
+  tidy() %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 8) %>%
+  ungroup() %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()
+
+```
+
+From the graphs above, we can infer which cluster belongs to which author. Topic 1 most likely represents ..., topic 2 most likely represents ..., topic 3 most likely represents ..., topic 4 most likely represents...
+
+
+
+Each document in this analysis represented a single chapter. Thus, we may want to know which topics are associated with each document. Can we put the chapters back together in the correct books? We can find this by examining the per-document-per-topic probabilities, $\gamma$.
+
+Each of these values is an estimated proportion of words from that document that are generated from that topic. For example, the model estimates that each word in the Great Expectations_57 document has only a 0% probability of coming from topic 1 (Pride and Prejudice).
+
+Now that we have these topic probabilities, we can see how well our unsupervised learning did at distinguishing the four books. We’d expect that chapters within a book would be found to be mostly (or entirely), generated from the corresponding topic.
+
+First we re-separate the document name into title and chapter, after which we can visualize the per-document-per-topic probability for each (Figure 6.5).
+
+We notice that almost all of the chapters from Pride and Prejudice, War of the Worlds, and Twenty Thousand Leagues Under the Sea were uniquely identified as a single topic each.
+
+It does look like some chapters from Great Expectations (which should be topic 4) were somewhat associated with other topics. Are there any cases where the topic most associated with a chapter belonged to another book? 
+####################################
+```{r}
+set.seed(1234)
+philosophy_gamma <- tidy(philosophy_lda, matrix = "gamma")
+
+
+philosophy_gamma <- philosophy_gamma %>%
+  separate(document, c("title", "chapter"), sep = "_", convert = TRUE)
+
+philosophy_gamma
+
+
+philosophy_gamma %>%
+  mutate(title = reorder(title, gamma * topic)) %>%
+  ggplot(aes(factor(topic), gamma)) +
+  geom_boxplot() +
+  facet_wrap(~ title) +
+  labs(x = "topic", y = expression(gamma))
+
+philosophy_classification <- philosophy_gamma %>%
+  group_by(title, chapter) %>%
+  slice_max(gamma) %>%
+  ungroup()
+
+book_topics <- philosophy_classification %>%
+  count(title, topic) %>%
+  group_by(title) %>%
+  slice_max(n, n = 1) %>% 
+  ungroup() %>%
+  transmute(consensus = title, topic)
+
+philosophy_classification %>%
+  inner_join(book_topics, by = "topic") %>%
+  filter(title != consensus)
+
+```
+
+We can then compare each to the “consensus” topic for each book (the most common topic among its chapters), and see which were most often misidentified. Its aritotle and plato.
+
+
+
+
+[^1]: https://www.gutenberg.org/
+
+[^2]: Full list of packages used can be found in the Appendix
+
+
+
+
+[4]: That's the maximum value that allows us to achieve a balance between prediction power and processing capabilities.
+
+
+
+
+## Conclusion
+
+
+## Appendix
+
+### Packages used not described in the main text
+
+tidytext
+tokenizer
+ggplot2
+stringr
+
+
