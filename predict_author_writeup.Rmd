@@ -459,11 +459,6 @@ philosophy_classification %>%
 ```
 
 
-### Packages used not described in the main text
 
-tidytext
-tokenizer
-ggplot2
-stringr
 
 
