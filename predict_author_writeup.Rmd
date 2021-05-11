@@ -291,20 +291,15 @@ The lines are pretty short and most are even single words but the predictions ma
 
 ### Unsupervised learning model
 
-In text mining, we often have collections of documents, such as blog posts or news articles, that we’d like to divide into natural groups so that we can understand them separately. Topic modeling is a method for unsupervised classification of such documents, similar to clustering on numeric data, which finds natural groups of items even when we’re not sure what we’re looking for.
+One of the most used models in text mining to analyze series of unlabeled, or even labelled, documents is topic models. Topic modeling is an unsupervised machine learning that “scans” these documents and finds natural cluster of words or phrases called topics. For example, say that we have two documents: an article about cars and an article about groceries. The common words in groceries would be “carrots”, “meat” and “milk” whereas the common words in cars would be “gas”, “horsepower” and “exhaust”. Consequently, each of these words would be respectively grouped together by the model creating two clusters. This might not seem useful when we only consider two documents, but it becomes extremely useful when we have hundreds or more documents and we want to cluster them broadly on areas of interest. In fact, this process is most likely used by major news networks or social media outlets. For example, say that someone logs in to their New York Times (NYT) account and primarily reads articles related to international politics or economics. The NYT will then use this data to recommend other articles that have the international politics or economics topic. However, the question remains on how to create such a model.
 
-Latent Dirichlet allocation (LDA) is a particularly popular method for fitting a topic model. It treats each document as a mixture of topics, and each topic as a mixture of words. This allows documents to “overlap” each other in terms of content, rather than being separated into discrete groups, in a way that mirrors typical use of natural language. 
+The main approach that is used the Latent Dirichlet Allocation (LDA) method. This method assumes two things: similar topics use similar words and documents are a mixture of several topics. In the example above with the grocery and car articles, there are shared words between the two topics such as “budget”, “price” and “environment”. The advantage of using the LDA is that the documents that are studied can “overlap” with each other in terms of word or phrase usage which reflects the use of natural language. Since we are dealing with philosophical works, we decided to use the LDA as we want to allow for the possibility that the philosophers might use the same words or phrases in their works as the others. The data preparation process is very similar to the supervised model, in which we break down out texts into token representing a particular word. The one difference that we make in the unsupervised learning model is that we are removing any words that appear less than 50 times in our tokenized dataset. The reason is that we want to see how well the model performs when there is a significant amount of overlap between the various works. This is because we believe that the words that are used less than 50 times are unique to a specific author, thus creating a clear distinction between them and the other authors. 
 
-Latent Dirichlet allocation is one of the most common algorithms for topic modeling. Without diving into the math behind the model, we can understand it as being guided by two principles: 
 
-Every document is a mixture of topics. We imagine that each document may contain words from several topics in particular proportions. For example, in a two-topic model we could say “Document 1 is 90% topic A and 10% topic B, while Document 2 is 30% topic A and 70% topic B.”
-Every topic is a mixture of words. For example, we could imagine a two-topic model of American news, with one topic for “politics” and one for “entertainment.” The most common words in the politics topic might be “President”, “Congress”, and “government”, while the entertainment topic may be made up of words such as “movies”, “television”, and “actor”. Importantly, words can be shared between topics; a word like “budget” might appear in both equally.
-
-LDA is a mathematical method for estimating both of these at the same time: finding the mixture of words that is associated with each topic, while also determining the mixture of topics that describes each document. There are a number of existing implementations of this algorithm, and we’ll explore one of them in depth.
-
-However, before we start we need to clean the data.  
 ```{r}
 philosphyunsupervisedcopy <- philosphyunsupervised
+philosphyunsupervised <- philosphyunsupervisedcopy
+
 
 cleaned_philosphyunsupervised <- philosphyunsupervised %>%
   group_by(author, gutenberg_id) %>%
@@ -322,11 +317,7 @@ philosophy_words <- cleaned_philosphyunsupervised %>%
 
 philosophy_words <- anti_join(philosophy_words, mystopwords, 
                               by = "word")
-```
 
-However, we go a step further by keeping words that have been mentioned more than 50 times in all of the texts. We are doing this because there is the possbility that the words that are mentioned less than 50 times are unique to a particular author and/or series of books written by an author that might make it easier for our unsupervised model to cluster the texts.   
-
-```{r}
 #### Keeping words that appear more than 50 times
 philosophy_words_mentioned50 <- philosophy_words %>%
   group_by(word) %>%
@@ -334,27 +325,21 @@ philosophy_words_mentioned50 <- philosophy_words %>%
   ungroup() %>%
   filter(word_total > 50)
 
-
-```
-
-Once the cleanup process is finished, transforming it into data matrix. 
-
-```{r}
 #### Transforming into data matrix
 
 philosophy_dtm <- philosophy_words_mentioned50 %>%
-  unite(title, author, gutenberg_id) %>%
+  unite(title, author, title) %>%
   count(title, word) %>%
   cast_dtm(title, word, n)
 
 ```
 
 
-As we have four authors, or "topics", we want to see what four topics that the model extract.
+To perform the LDA method in R, we are using the LDA command in the topicmodels package. This command highlights one of the key “issues” of topic modeling: the need to specify a number of topics.  In the case of major news networks, one can see the various topics that describe an article (health, business, politics, etc…) that have been decided by these networks. The topic models do not inherently give names to the topics they simply cluster the documents based on the number of cluster points, i.e. topics, specified. However, since we know that our documents have been written by four authors, we specify to our model that there are four topics to cluster around. 
+
 ```{r}
 #### Using Latent Dirichlet Allocation, setting it to four clusters as we have four authors 
-set.seed(1234)
-philosophy_lda <- LDA(philosophy_dtm, k = 4)
+philosophy_lda <- LDA(philosophy_dtm, k = 4,control = list(seed = 1234))
 philosophy_lda %>%
   tidy() %>%
   group_by(topic) %>%
@@ -368,61 +353,79 @@ philosophy_lda %>%
 
 ```
 
-From the graphs above, we can infer which cluster belongs to which author. Topic 1 most likely represents ..., topic 2 most likely represents ..., topic 3 most likely represents ..., topic 4 most likely represents...
+As we can see in the graph above, the issue of needing to specify the number and the name of topics is clear. The graph allows us to infer which topic belongs to which author, but it does not directly give us the names of the authors associated with each topic. We can conclude that topic 2 and 3 are associated with the Greek Philosophers due to the words Athenian, Cleinias, Socrates and Theaetetus, therefore leaving topics 1 and 4 to the more modern philosophers Hume and Kant. However, we are unable to confidently say which topic is specifically associated to a particular author. From term-frequency inverse document frequency within Plato’s works, the words that most uniquely identify Plato’s works are name of characters. Since topic 3 has two names that are mentioned, and that are in the top four most frequent words, we can conclude that topic 3 refers to Plato, and topic 2 to Aristotle. We believe that topic 1 represents Hume because we are somewhat familiar with Kant’s philosophy about nature and principles, words that are found in topic 4.   
 
 
 
-Each document in this analysis represented a single chapter. Thus, we may want to know which topics are associated with each document. Can we put the chapters back together in the correct books? We can find this by examining the per-document-per-topic probabilities, $\gamma$.
-
-Each of these values is an estimated proportion of words from that document that are generated from that topic. For example, the model estimates that each word in the Great Expectations_57 document has only a 0% probability of coming from topic 1 (Pride and Prejudice).
-
-Now that we have these topic probabilities, we can see how well our unsupervised learning did at distinguishing the four books. We’d expect that chapters within a book would be found to be mostly (or entirely), generated from the corresponding topic.
-
-First we re-separate the document name into title and chapter, after which we can visualize the per-document-per-topic probability for each (Figure 6.5).
-
-We notice that almost all of the chapters from Pride and Prejudice, War of the Worlds, and Twenty Thousand Leagues Under the Sea were uniquely identified as a single topic each.
-
-It does look like some chapters from Great Expectations (which should be topic 4) were somewhat associated with other topics. Are there any cases where the topic most associated with a chapter belonged to another book? 
-####################################
 ```{r}
-set.seed(1234)
-philosophy_gamma <- tidy(philosophy_lda, matrix = "gamma")
+
+philosophy_gamma <- tidy(philosophy_lda, matrix = "gamma",control = list(seed = 1234))
 
 
 philosophy_gamma <- philosophy_gamma %>%
-  separate(document, c("title", "chapter"), sep = "_", convert = TRUE)
+  separate(document, c("Author", "Title"), sep = "_", convert = TRUE)
 
 philosophy_gamma
 
-
-philosophy_gamma %>%
-  mutate(title = reorder(title, gamma * topic)) %>%
-  ggplot(aes(factor(topic), gamma)) +
-  geom_boxplot() +
-  facet_wrap(~ title) +
-  labs(x = "topic", y = expression(gamma))
-
-philosophy_classification <- philosophy_gamma %>%
-  group_by(title, chapter) %>%
-  slice_max(gamma) %>%
-  ungroup()
-
-book_topics <- philosophy_classification %>%
-  count(title, topic) %>%
-  group_by(title) %>%
-  slice_max(n, n = 1) %>% 
-  ungroup() %>%
-  transmute(consensus = title, topic)
-
-philosophy_classification %>%
-  inner_join(book_topics, by = "topic") %>%
-  filter(title != consensus)
-
 ```
 
-We can then compare each to the “consensus” topic for each book (the most common topic among its chapters), and see which were most often misidentified. Its aritotle and plato.
+However, this is not enough. We are interested in seeing the document per topic probability meaning that we want to see what is the probability that a document is situated in a particular topic. For example, Aristotle’s book “Aristotle on the Art of Poetry” has an 11\% chance of coming from topic 1, which we assume to be Hume. In order to get a better idea, we look at the boxplot that represents the probability, denoted as $\gamma$, that the author is in the respective topic.     
+
+```{r}
+philosophy_gamma %>%
+  mutate(Author = reorder(Author, gamma * topic)) %>%
+  ggplot(aes(factor(topic), gamma)) +
+  geom_boxplot() +
+  facet_wrap(~ Author) +
+  labs(x = "topic", y = expression(gamma))
+```
+
+Unfortunately, our model does not have a very good predictive capability, although it is important to note that we removed words that were used less than 50 times, which would affect the results. However, considering this limitation, the model does a relatively good job at distinguishing works written by Hume and Kant from work written in a different era, written by Aristotle and Plato. Furthermore, Hume’s works, topic 1, have almost been perfectly associated with being written by Hume. Kant’s association with topic 4 is also high. However, the model is terrible at distinguishing works between Plato and Aristotle. Both authors have written in the same language and have both been translated. As mentioned earlier, translations often contain the writing mannerisms of the translator, meaning that translated works might share similar writing patterns as they might be translated by the same translator. In fact, Plato’s works have been mostly attributed to Aristotle as an author, as shown by the table in the appendix, possibly because Aristotle was Plato’s student. This seems to be supported by the figure below where we reran LDA model without exlcuding the words that have appeared 50 times or less. As we can see, both the prediction accuracy for Hume and Kant have significantly increased.   
 
 
+
+```{r}
+philosphyunsupervised2 <- philosphyunsupervisedcopy
+
+
+cleaned_philosphyunsupervised2 <- philosphyunsupervised2 %>%
+  group_by(author, gutenberg_id) %>%
+  filter(cumsum(text == "") > 0,
+         cumsum(str_detect(text, "^--")) == 0) %>%
+  ungroup()
+
+mystopwords <- tibble(word = c("e.g", "_i.e", "i.e", "xiii", "book1", "chapter1", "chapter2",
+                               "book2", "chapter3"))
+
+philosophy_words2 <- cleaned_philosphyunsupervised2 %>%
+  unnest_tokens(word, text) %>%
+  filter(str_detect(word, "[a-z']$"),
+         !word %in% stop_words$word)
+
+philosophy_words2 <- anti_join(philosophy_words2, mystopwords, 
+                              by = "word")
+
+
+philosophy_dtm2 <- philosophy_words2 %>%
+  unite(title, author, title) %>%
+  count(title, word) %>%
+  cast_dtm(title, word, n)
+
+
+philosophy_lda2 <- LDA(philosophy_dtm2, k = 4,control = list(seed = 1234))
+philosophy_gamma2 <- tidy(philosophy_lda2, matrix = "gamma",control = list(seed = 1234))
+
+
+philosophy_gamma2 <- philosophy_gamma2 %>%
+  separate(document, c("Author", "Title"), sep = "_", convert = TRUE)
+
+philosophy_gamma2 %>%
+  mutate(Author = reorder(Author, gamma * topic)) %>%
+  ggplot(aes(factor(topic), gamma)) +
+  geom_boxplot() +
+  facet_wrap(~ Author) +
+  labs(x = "topic", y = expression(gamma))
+```
 
 
 [^1]: https://www.gutenberg.org/
@@ -441,6 +444,26 @@ We can then compare each to the “consensus” topic for each book (the most co
 
 
 ## Appendix
+
+```{r}
+philosophy_classification <- philosophy_gamma %>%
+  group_by(Author, Title) %>%
+  slice_max(gamma) %>%
+  ungroup()
+
+book_topics <- philosophy_classification %>%
+  count(Author, topic) %>%
+  group_by(Author) %>%
+  slice_max(n, n = 1) %>% 
+  ungroup() %>%
+  transmute(consensus = Author, topic)
+
+philosophy_classification %>%
+  inner_join(book_topics, by = "topic") %>%
+  filter(Author != consensus)
+
+```
+
 
 ### Packages used not described in the main text
 
