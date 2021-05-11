@@ -434,6 +434,8 @@ philosophy_gamma2 %>%
 
 ## Conclusion
 
+Although we used a supervised and unsupervised models, it is very interesting that we reach the same conclusion: Plato's works are more likely to be attributed to Aristotle. One possible reason is that there is an issue of the works being translated by the same author. The second reason is that Plato's works are in fact similar to Aristotle's and it would be difficult to distinguish them without a neural network. To verify if there is an issue of translation, we would suggest considering other books from the Classical Era that have also been translated into English, assuring that there is no connection between the authors. If our models give  similar results, where they confuse one author for another, then there is a translation issue. However, if the models are able to make a clear distinction between the two, then only logical explanation is that the relationship between Aristotle and Plato is creating issues for our models.     
+
 
 ## Appendix
 
