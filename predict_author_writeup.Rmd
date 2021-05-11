@@ -256,7 +256,7 @@ multi_lasso_rs %>%
 
 ```
 
-Lastly,we evaluate our model on the test set. We have an accuracy of 66.7% which is very close to our in-sample accuracy. 
+Lastly, we evaluate our model on the test set. We have an accuracy of 66.7% which is very close to our in-sample accuracy. 
 
 ```{r}
 choose_acc <- multi_lasso_rs %>%
@@ -423,16 +423,6 @@ philosophy_classification %>%
 We can then compare each to the “consensus” topic for each book (the most common topic among its chapters), and see which were most often misidentified. Its aritotle and plato.
 
 
-
-
-[^1]: https://www.gutenberg.org/
-
-[^2]: Full list of packages used can be found in the Appendix
-
-
-
-
-[4]: That's the maximum value that allows us to achieve a balance between prediction power and processing capabilities.
 
 
 
