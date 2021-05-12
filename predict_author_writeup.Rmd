@@ -461,6 +461,36 @@ philosophy_classification %>%
 ```
 
 
+### Resources used
+
+## CRAN for gutenbergr
+https://cran.r-project.org/web/packages/gutenbergr/vignettes/intro.html
 
 
+## Jane Austen vs Wells classification
+
+https://juliasilge.com/blog/tidy-text-classification/
+
+
+## Federalist papers classification
+
+https://www.hvitfeldt.me/blog/predicting-authorship-in-the-federalist-papers-with-tidytext/
+
+https://www.hvitfeldt.me/blog/authorship-classification-with-tidymodels-and-textrecipes/
+
+## The Office
+
+https://www.hvitfeldt.me/blog/tidytuesday-pos-textrecipes-the-office/
+
+
+## Term frequency guide
+https://www.tidytextmining.com/tfidf.html
+
+
+## Topic modeling
+https://www.tidytextmining.com/topicmodeling.html
+
+## Multiclass classification
+
+https://smltar.com/mlclassification.html#mlmulticlass
 
