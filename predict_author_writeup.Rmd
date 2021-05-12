@@ -51,6 +51,12 @@ To start out, we take a look at the tf-idfs within Plato's works, we see that th
 
 Next, we repeat the above step but this time across all authors. We see that Plato is mostly identified by names of characters as expected, Aristotle seems to be heavily identified by his use of greek letters, Kant looks to be identified by more broad philosophical ideas. It's difficult to say how exactly Hume is identified but the rest of the terms associated with these authors makes sense. 
 
+
+
+
+
+
+
 [^1]: https://www.gutenberg.org/
 
 [^2]: More on tf-idf can be found here https://www.tidytextmining.com/tfidf.html
@@ -154,11 +160,13 @@ ggsave("authors.png", width = 10, height= 10)
 
 ![](authors.png)
 
+\newpage
+
 ### Supervised learning model
 
-For our supervised learning model, we employ the use of a multinomial regression model with lasso regularization using the glmnet package in r. The tokens and their tf-idfs represent the features of our data. This method is well suited for text prediction as given the very high dimensional space of our features, the lasso regularization allows for the penalization of features (down to zero at times) and so the final model will only include features (tokens) that the algorithm considers to be key to prediction ^[3]. 
+For our supervised learning model, we employ the use of a multinomial regression model with lasso regularization using the glmnet package in r. The tokens and their tf-idfs represent the features of our data. This method is well suited for text prediction as given the very high dimensional space of our features, the lasso regularization allows for the penalization of features (down to zero at times) and so the final model will only include features (tokens) that the algorithm considers to be key to prediction [^3]. 
 
-First, we split our data into a training and test set and examine the raw counts of lines by author. From the table below, we see that we do not have balance as Plato is overly represented in our training sample. To address this, authors with the majority of the lines are down-sampled after our text-preprocessing steps in order to achieve a balanced sample of authors to potentially improve our prediction. We also use a max of 1600 tokens ^[4] We explore different values for our penalty hyper-parameter and we use the one that returns the best results in terms of prediction accuracy as our final model. In dealing with the random variation in our train/test splits, we use k-fold cross validation with 10 folds.
+First, we split our data into a training and test set and examine the raw counts of lines by author. From the table below, we see that we do not have balance as Plato is overly represented in our training sample. To address this, authors with the majority of the lines are down-sampled after our text-preprocessing steps in order to achieve a balanced sample of authors to potentially improve our prediction. We also use a max of 1600 tokens [^4] We explore different values for our penalty hyper-parameter and we use the one that returns the best results in terms of prediction accuracy as our final model. In dealing with the random variation in our train/test splits, we use k-fold cross validation with 10 folds.
 
 [^3]: More on lasso can be found here https://en.wikipedia.org/wiki/Lasso_(statistics)
 
@@ -270,7 +278,6 @@ collect_metrics(final_fitted)
 
 Let's check and see which lines the model seems to do best at in the test set. 
 
-\newpage
 
 **Best predicted lines**
 
@@ -339,7 +346,7 @@ philosophy_dtm <- philosophy_words_mentioned50 %>%
 
 To perform the LDA method in R, we are using the LDA command in the topicmodels package. This command highlights one of the key “issues” of topic modeling: the need to specify a number of topics.  In the case of major news networks, one can see the various topics that describe an article (health, business, politics, etc…) that have been decided by these networks. The topic models do not inherently give names to the topics they simply cluster the documents based on the number of cluster points, i.e. topics, specified. However, since we know that our documents have been written by four authors, we specify to our model that there are four topics to cluster around. 
 
-```{r}
+```{r, fig.height= 5}
 #### Using Latent Dirichlet Allocation, setting it to four clusters as we have four authors 
 philosophy_lda <- LDA(philosophy_dtm, k = 4,control = list(seed = 1234))
 philosophy_lda %>%
@@ -423,15 +430,17 @@ philosophy_gamma2 <- tidy(philosophy_lda2, matrix = "gamma",control = list(seed 
 philosophy_gamma2 <- philosophy_gamma2 %>%
   separate(document, c("Author", "Title"), sep = "_", convert = TRUE)
 
-philosophy_gamma2 %>%
+plot<- philosophy_gamma2 %>%
   mutate(Author = reorder(Author, gamma * topic)) %>%
   ggplot(aes(factor(topic), gamma)) +
   geom_boxplot() +
   facet_wrap(~ Author) +
   labs(x = "topic", y = expression(gamma))
+
+ggsave("plot.png", height= 4)
 ```
 
-
+![](plot.png)
 
 
 ## Conclusion
