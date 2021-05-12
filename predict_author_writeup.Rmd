@@ -5,7 +5,6 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 header-includes: \usepackage{setspace}\doublespacing
 output: pdf_document
 abstract: We employ both supervised and unsupervised learning methods to predict the authorship of philosophy text across four authors (Plato, Aristotle, Kant, Hume). For our supervised model, we use multinomial lasso regression using the tokens (words) as features and a line of text as the outcome. We get an accuracy of 67 percent with this technique. The unsupervised model uses topic modeling to give the probability that a document belong to a particular author. The results from both approaches are similar in that they perform well in distinguishing Kant and Hume from Plato and Aristotle but both models particularly fail to distinguish Plato from Aristotle.
-.
 ---
 
 ```{r setup, include=FALSE}
@@ -55,6 +54,7 @@ Next, we repeat the above step but this time across all authors. We see that Pla
 
 
 
+.
 
 
 
