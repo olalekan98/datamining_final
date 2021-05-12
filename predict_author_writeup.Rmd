@@ -443,6 +443,8 @@ Disregarding this issue, it seems that the our models have a relatively high cha
 
 ## Appendix
 
+The table below shows the which authors have misidentified by the model. The Author column indicates the correct author and the consensus column indicates what the model predicted the author to be. As we can see, three of Aristotle's work have been attributed to Plato, two of Kant's works have been attributed to Aristotle. The remaining rows are all the work written by Plato that have mis-attributed to Aristotle.
+
 ```{r}
 philosophy_classification <- philosophy_gamma %>%
   group_by(Author, Title) %>%
