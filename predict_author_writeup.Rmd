@@ -270,6 +270,8 @@ collect_metrics(final_fitted)
 
 Let's check and see which lines the model seems to do best at in the test set. 
 
+\newpage
+
 **Best predicted lines**
 
 ```{r}
