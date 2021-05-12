@@ -4,6 +4,7 @@ author: "Olalekan Bello and Gaetano Dona-Jehan"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 header-includes: \usepackage{setspace}\doublespacing
 output: pdf_document
+abstract: We employ both supervised and unsupervised learning methods to predict the authorship of philosophy text across four authors. For our supervised model, we use multinomial lasso regression using the tokens (words) as features and a line of text as the outcome. We get an accuracy of 67 percent with this technique.
 ---
 
 ```{r setup, include=FALSE}
