@@ -264,6 +264,8 @@ multi_lasso_rs %>%
 
 ```
 
+\newpage
+
 Lastly, we evaluate our model on the test set. We have an accuracy of 66.7% which is very close to our in-sample accuracy. 
 
 ```{r}
@@ -449,6 +451,7 @@ Although we used a supervised and unsupervised models, it is very interesting th
 
 Disregarding this issue, it seems that the our models have a relatively high change of predicting the author of philosophical works. Since philosophy tends to build on itself, therefore adding a level of complexity, we are certain that our models can be applicable to other genres of literature and with more than four authors. 
 
+\newpage
 
 ## Appendix
 
