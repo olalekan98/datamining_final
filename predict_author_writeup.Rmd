@@ -43,7 +43,7 @@ We focus on four philosophers; Plato, Aristotle, Immanuel Kant and David Hume. W
 In terms of relationships, there also exists a mix of ideas between the authors. Plato is known as the father of western philosophy which all the authors belong to and was actually a direct teacher of Aristotle. Kant and Hume were also "competitors" in a sense in that they belonged to different schools of thought within Western philosophy. Kant even famously credited Hume for "awaking him from his slumber".
 
 
-## Data and Models
+## Methods and Results
 
 Our primary data source is the gutenberg project [^1]. The gutenberg project is an online library of over 60,000 free e-books that span a long range of time and genres. We access this library using the "gutenbergr" package which allows us to directly download and process public domain works from the Gutenberg project collection as well as their metadata. The metadata that is given includes information about each work that we downloaded with their Gutenberg ID, title, information about the author, the language etc… We process this data using a number of text based packages in R. 
 We break our text down into tokens whereby each token represents a feature of our dataset. Instead of using raw counts as our variables of interest, we use the slightly more sophisticated term-frequency inverse document frequency (tf_idf) [^2]. Basically, the tf-idf is able to look within groups and identify the words that are most important to that particular group. This eliminates the need to manually remove stopwords such as "a, the, and, or" etc. because they would be weighted at 0 or very close to 0 because they are common across groups. 
